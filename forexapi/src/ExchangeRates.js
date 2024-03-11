@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useReducer, createContext, useContext } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 
@@ -37,7 +37,29 @@ const LoadingIndicator = styled.div`
   color: #888;
 `;
 
-// Functional component
+const ratesReducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_RATES':
+      return action.payload;
+    default:
+      return state;
+  }
+};
+
+
+const ExchangeRatesContext = createContext();
+
+const ExchangeRatesProvider = ({ children }) => {
+  const [ratesData, dispatch] = useReducer(ratesReducer, {});
+  
+  return (
+    <ExchangeRatesContext.Provider value={{ ratesData, dispatch }}>
+      {children}
+    </ExchangeRatesContext.Provider>
+  );
+};
+
+const useExchangeRatesContext = () => useContext(ExchangeRatesContext);
 
 const CurrencyPairComponent = ({ pair }) => <CurrencyPair>{pair}</CurrencyPair>;
 
@@ -48,7 +70,7 @@ const ErrorComponent = ({ message }) => <ErrorDisplay>Error: {message}</ErrorDis
 const LoadingComponent = () => <LoadingIndicator>Loading...</LoadingIndicator>;
 
 const ExchangeRates = () => {
-  const [ratesData, setRatesData] = useState({});
+  const { ratesData, dispatch } = useExchangeRatesContext();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -58,7 +80,7 @@ const ExchangeRates = () => {
         const apiKey = '93cf208cea0a49fbaa9bc036a6d06964';
         const response = await axios.get(`https://openexchangerates.org/api/latest.json?app_id=${apiKey}`);
         if (response.data && response.data.rates) {
-          setRatesData(response.data.rates);
+          dispatch({ type: 'SET_RATES', payload: response.data.rates });
           setLoading(false); 
         }
       } catch (error) {
@@ -68,7 +90,7 @@ const ExchangeRates = () => {
     };
 
     fetchExchangeRates();
-  }, []);
+  }, [dispatch]);
 
   if (loading) {
     return <LoadingComponent />;
@@ -80,7 +102,7 @@ const ExchangeRates = () => {
 
   return (
     <>
-      <Heading>Currency Exchange Rates Relative to USD</Heading>
+      <Heading>Exchange Rates Relative to USD</Heading>
       <Container>
         {Object.entries(ratesData).map(([pair, rate]) => (
           <CurrencyContainer key={pair}>
@@ -93,4 +115,12 @@ const ExchangeRates = () => {
   );
 };
 
-export default ExchangeRates;
+const App = () => {
+  return (
+    <ExchangeRatesProvider>
+      <ExchangeRates />
+    </ExchangeRatesProvider>
+  );
+};
+
+export default App;
